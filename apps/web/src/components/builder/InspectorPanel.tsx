@@ -3,7 +3,7 @@
 import React from "react";
 import { SECTION_LABELS } from "@website-engine/core";
 import type { Section, SectionType } from "@website-engine/core";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 interface InspectorPanelProps {
   section: Section;
@@ -233,7 +233,7 @@ export function InspectorPanel({ section, onUpdate }: InspectorPanelProps) {
               items={s.items || []}
               onUpdate={(items) => set("items", items)}
               itemLabel="Service"
-              createItem={() => ({ title: "Leistung", description: "Beschreibung" })}
+              createItem={() => ({ icon: "", title: "Leistung", description: "Beschreibung", price: "" })}
               renderItem={(item, _idx, update) => (
                 <div className="space-y-1.5">
                   <input type="text" value={item.icon || ""} onChange={(e) => update({ ...item, icon: e.target.value })} placeholder="Icon" className="w-full text-xs px-2 py-1 border rounded outline-none" />
@@ -285,7 +285,7 @@ export function InspectorPanel({ section, onUpdate }: InspectorPanelProps) {
               items={s.tiers || []}
               onUpdate={(tiers) => set("tiers", tiers)}
               itemLabel="Tier"
-              createItem={() => ({ name: "Plan", price: "€49", features: ["Feature 1"], highlighted: false })}
+              createItem={() => ({ name: "Plan", price: "€49", period: "", features: ["Feature 1"], highlighted: false })}
               renderItem={(tier, _idx, update) => (
                 <div className="space-y-1.5">
                   <input type="text" value={tier.name || ""} onChange={(e) => update({ ...tier, name: e.target.value })} placeholder="Name" className="w-full text-xs px-2 py-1 border rounded outline-none" />
@@ -310,7 +310,7 @@ export function InspectorPanel({ section, onUpdate }: InspectorPanelProps) {
               items={s.members || []}
               onUpdate={(members) => set("members", members)}
               itemLabel="Member"
-              createItem={() => ({ name: "Name", role: "Position" })}
+              createItem={() => ({ name: "Name", role: "Position", bio: "", image: { src: "", alt: "" } })}
               renderItem={(m, _idx, update) => (
                 <div className="space-y-1.5">
                   <input type="text" value={m.name || ""} onChange={(e) => update({ ...m, name: e.target.value })} placeholder="Name" className="w-full text-xs px-2 py-1 border rounded outline-none" />
@@ -339,7 +339,7 @@ export function InspectorPanel({ section, onUpdate }: InspectorPanelProps) {
               items={s.items || []}
               onUpdate={(items) => set("items", items)}
               itemLabel="Testimonial"
-              createItem={() => ({ quote: "Tolles Unternehmen!", author: "Kunde", rating: 5 })}
+              createItem={() => ({ quote: "Tolles Unternehmen!", author: "Kunde", role: "", rating: 5 })}
               renderItem={(item, _idx, update) => (
                 <div className="space-y-1.5">
                   <textarea value={item.quote || ""} onChange={(e) => update({ ...item, quote: e.target.value })} placeholder="Quote" rows={2} className="w-full text-xs px-2 py-1 border rounded outline-none resize-y" />

@@ -30,9 +30,10 @@ router.post("/", async (req, res) => {
 
     await saveProject(project);
     res.json(project);
-  } catch (err) {
-    console.error("[generate] Error:", err);
-    res.status(500).json({ error: "Generation failed", details: String(err) });
+  } catch (err: any) {
+    const msg = err?.issues ? JSON.stringify(err.issues, null, 2) : String(err);
+    console.error("[generate] Error:", msg);
+    res.status(500).json({ error: "Generation failed", details: msg });
   }
 });
 

@@ -1,7 +1,12 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
+
+// Load .env — try monorepo root first, then cwd
+dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
 import express from "express";
 import cors from "cors";
-import path from "path";
 import projectsRouter from "./routes/projects";
 import scrapeRouter from "./routes/scrape";
 import generateRouter from "./routes/generate";
@@ -30,6 +35,14 @@ app.use("/api/export", exportRouter);
 // Health check
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Global error handling to prevent crashes
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught exception:", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled rejection:", reason);
 });
 
 app.listen(PORT, () => {

@@ -140,6 +140,36 @@ Use real UUIDs (format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx) for all id fields.
 Language: ${language === "de" ? "German" : "English"}`;
 }
 
+const VALID_PADDINGS = new Set(["none", "sm", "md", "lg"]);
+const VALID_BACKGROUNDS = new Set(["default", "surface", "primary", "dark"]);
+
+/**
+ * Fix common LLM mistakes in generated JSON before Zod validation.
+ */
+function sanitizeLLMOutput(data: any): void {
+  if (!data?.pages) return;
+  for (const page of data.pages) {
+    if (!page?.sections) continue;
+    for (const section of page.sections) {
+      // Fix invalid padding values
+      if (!VALID_PADDINGS.has(section.paddingTop)) section.paddingTop = "md";
+      if (!VALID_PADDINGS.has(section.paddingBottom)) section.paddingBottom = "md";
+      // Fix invalid background values
+      if (!VALID_BACKGROUNDS.has(section.background)) section.background = "default";
+      // Ensure visible is boolean
+      if (section.visible === undefined) section.visible = true;
+      // Fix cta_banner missing buttons
+      if (section.type === "cta_banner" && !section.buttons) {
+        section.buttons = [{ label: "Kontakt", href: "#contact", variant: "primary" }];
+      }
+      // Fix hero missing buttons
+      if (section.type === "hero" && !section.buttons) {
+        section.buttons = [];
+      }
+    }
+  }
+}
+
 export async function generateSiteProject(
   options: GenerateOptions
 ): Promise<SiteProject> {
@@ -182,8 +212,20 @@ export async function generateSiteProject(
     }
   }
 
+  // Fix common LLM output mistakes before validation
+  sanitizeLLMOutput(parsed);
+
   // Validate with Zod (lenient: strip unknown fields)
-  const project = SiteProjectSchema.parse(parsed);
+  let project: SiteProject;
+  try {
+    project = SiteProjectSchema.parse(parsed);
+  } catch (zodErr: any) {
+    const issues = zodErr?.issues
+      ? zodErr.issues.map((i: any) => `${i.path.join(".")}: ${i.message}`).join("\n")
+      : String(zodErr);
+    console.error("[generate] Zod validation failed:\n", issues);
+    throw new Error(`Generated JSON failed schema validation:\n${issues}`);
+  }
 
   onProgress?.("Website project generated successfully!");
   return project;

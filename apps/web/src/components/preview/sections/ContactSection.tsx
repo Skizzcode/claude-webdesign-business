@@ -90,7 +90,7 @@ export default function ContactSection({ section, design, meta }: ContactSection
                 <textarea
                   rows={4}
                   className="w-full px-3 py-2.5 text-sm border outline-none transition-shadow focus:ring-2"
-                  style={{ borderRadius: `${design.radius}px`, borderColor: design.palette.surface, focusRingColor: design.palette.primary }}
+                  style={{ borderRadius: `${design.radius}px`, borderColor: design.palette.surface }}
                 />
               ) : field.type === "select" ? (
                 <select

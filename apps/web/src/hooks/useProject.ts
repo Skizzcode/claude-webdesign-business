@@ -144,12 +144,25 @@ export function useProject(projectId: string) {
     [project, save]
   );
 
+  // Reload project from server (after regeneration etc.)
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      const p = await api.getProject(projectId);
+      setProject(p);
+    } catch (err) {
+      setError(String(err));
+    }
+    setLoading(false);
+  }, [projectId]);
+
   return {
     project,
     loading,
     error,
     saving,
     save,
+    reload,
     updatePage,
     updateSection,
     addSection,

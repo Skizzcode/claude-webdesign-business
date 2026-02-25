@@ -34,6 +34,7 @@ export const SiteProjectSchema = z.object({
   pages: z.array(PageSchema).min(1),
   assets: z.object({
     images: z.array(AssetSchema),
+    scrapedImagesAllowed: z.boolean().default(false),
   }),
 });
 export type SiteProject = z.infer<typeof SiteProjectSchema>;

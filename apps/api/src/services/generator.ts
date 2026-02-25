@@ -3,11 +3,17 @@ import {
   type SiteProject,
   type StylePreset,
   type ScrapedData,
+  type IndustryClassification,
   SiteProjectSchema,
   getDesignForPreset,
-  getPageLayoutForPreset,
+  getIndustryProfile,
+  selectBlueprint,
+  type IndustryProfile,
+  type TemplateBlueprint,
+  type IndustryId,
 } from "@website-engine/core";
-import { createLLMAdapter, type LLMAdapter } from "../llm";
+import { createLLMAdapter } from "../llm";
+import { classifyIndustry } from "./industry-classifier";
 
 export interface GenerateOptions {
   scrapedData: ScrapedData;
@@ -15,51 +21,115 @@ export interface GenerateOptions {
   language: "de" | "en";
   industry?: string;
   projectId?: string;
+  seed?: string;
   onProgress?: (msg: string) => void;
 }
 
-function buildSystemPrompt(language: "de" | "en"): string {
+// ── System Prompt (industry-aware) ────────────────────────
+
+function buildSystemPrompt(
+  language: "de" | "en",
+  profile: IndustryProfile
+): string {
   const lang = language === "de" ? "German" : "English";
+  const ctaSet = profile.ctaSets[0];
+  const ctaLabel = ctaSet
+    ? ctaSet.primary.label[language === "de" ? "de" : "en"]
+    : "Kontakt";
+
   return `You are a professional web copywriter and website architect for small local businesses.
 You create conversion-optimized website content in ${lang}.
 
 Your output must be ONLY valid JSON — no markdown, no code fences, no explanation.
 The JSON must conform exactly to the SiteProject schema provided.
 
-Key principles:
-- Write compelling, professional ${lang} copy
+## Industry: ${profile.label.en}
+## Tone of Voice
+${profile.copyFramework.toneOfVoice}
+
+## Key Principles
+- Write compelling, professional ${lang} copy tailored to the ${profile.label.en} industry
 - Focus on conversion: clear CTAs, social proof, trust signals
 - Use the business's actual information (name, phone, services, etc.)
 - If information is missing, create plausible professional placeholder text
 - Every page must have at least a hero section and footer
-- The primary CTA should encourage phone calls or contact form submissions
+- The primary CTA should encourage: "${ctaLabel}"
 - Keep text concise but persuasive
-- For testimonials, create realistic placeholder quotes (clearly marked as examples)
-- Use appropriate Lucide icon names for benefit/service icons (e.g., "Star", "Clock", "Shield", "Phone", "MapPin", "Heart", "Wrench", "Scissors")`;
+- For testimonials, create realistic placeholder quotes
+- NEVER fabricate real reviews, certifications, or specific credentials
+- Use trust signals as placeholder templates (e.g. "[Zertifizierung einfügen]")
+- Use appropriate Lucide icon names (Star, Clock, Shield, Phone, MapPin, Heart, Wrench, Scissors, etc.)`;
 }
 
-function buildGenerationPrompt(options: GenerateOptions): string {
-  const { scrapedData, preset, language, industry } = options;
+// ── User Prompt (industry-enriched) ───────────────────────
+
+function buildGenerationPrompt(
+  options: GenerateOptions,
+  profile: IndustryProfile,
+  blueprint: TemplateBlueprint,
+  classification: IndustryClassification
+): string {
+  const { scrapedData, preset, language } = options;
   const design = getDesignForPreset(preset);
+  const lang = language === "de" ? "de" : "en";
 
-  // Get page layouts for this preset
-  const pageSlugs = ["home", "services", "about", "contact"];
-  const pageLayouts: Record<string, string[]> = {};
-  for (const slug of pageSlugs) {
-    pageLayouts[slug] = getPageLayoutForPreset(preset, slug);
-  }
+  // CTA instructions from profile
+  const ctaSet = profile.ctaSets[0];
+  const ctaInstructions = ctaSet
+    ? `### CTA Strategy
+- Primary CTA: "${ctaSet.primary.label[lang]}" (href: ${ctaSet.primary.href})
+- Secondary CTA: "${ctaSet.secondary.label[lang]}" (href: ${ctaSet.secondary.href})
+- CTA Microcopy: "${ctaSet.microcopy[lang]}"`
+    : "";
 
-  const pageLabels =
-    language === "de"
-      ? { home: "Startseite", services: "Leistungen", about: "Über uns", contact: "Kontakt" }
-      : { home: "Home", services: "Services", about: "About", contact: "Contact" };
+  // Trust signals
+  const trustSignals = profile.trustSignals
+    .map((t) => `- ${t.label[lang]} (icon: ${t.icon || "Shield"}, placeholder: "${t.placeholder}")`)
+    .join("\n");
 
-  const navLabels =
-    language === "de"
-      ? { home: "Start", services: "Leistungen", about: "Über uns", contact: "Kontakt" }
-      : { home: "Home", services: "Services", about: "About", contact: "Contact" };
+  // Benefit themes
+  const benefitThemes = profile.copyFramework.benefitThemes
+    .map((b) => b[lang])
+    .join(", ");
 
-  // Build available images list
+  // Headline inspirations
+  const headlinePatterns = profile.copyFramework.headlinePatterns
+    .map((h) => h[lang])
+    .join(" | ");
+
+  // FAQ templates
+  const faqTemplates = profile.copyFramework.faqTemplates
+    .map((f) => `Q: ${f.question[lang]} / A: ${f.answer[lang]}`)
+    .join("\n");
+
+  // Design hints
+  const designHintText = `Palette strategy: ${profile.designHints.paletteStrategy}
+${
+  profile.designHints.typographyHints?.[preset]
+    ? `Suggested fonts: heading="${profile.designHints.typographyHints[preset]!.heading}", body="${profile.designHints.typographyHints[preset]!.body}"`
+    : ""
+}
+${profile.designHints.radiusRange ? `Border radius: ${profile.designHints.radiusRange[0]}-${profile.designHints.radiusRange[1]}px` : ""}`;
+
+  // Blueprint pages with section instructions
+  const pageInstructions = blueprint.pages
+    .map((page) => {
+      const sectionList = page.sections
+        .map((s) => {
+          let line = `  - ${s.type}`;
+          if (s.variant) line += ` (layout: "${s.variant}")`;
+          if (s.instructions) line += ` — ${s.instructions}`;
+          return line;
+        })
+        .join("\n");
+
+      return `### ${page.title[lang]} (slug: "${page.slug}")
+- navLabel: "${page.navLabel[lang]}"
+- Sections:\n${sectionList}`;
+    })
+    .join("\n\n");
+
+  // Available images (scraped)
   const imageRefs = (scrapedData as any).downloadedImages
     ? (scrapedData as any).downloadedImages.map((img: any) => img.localFile)
     : [];
@@ -68,7 +138,7 @@ function buildGenerationPrompt(options: GenerateOptions): string {
 
 ## Business Data (scraped)
 - Name: ${scrapedData.businessName || "Unknown Business"}
-- Industry: ${industry || "General Services"}
+- Detected Industry: ${profile.label[lang]} (confidence: ${Math.round(classification.confidence * 100)}%)
 - Phone: ${scrapedData.phone || "Not found"}
 - Email: ${scrapedData.email || "Not found"}
 - Address: ${scrapedData.address || "Not found"}
@@ -76,24 +146,37 @@ function buildGenerationPrompt(options: GenerateOptions): string {
 - Tagline: ${scrapedData.tagline || "None"}
 - Social Links: ${JSON.stringify(scrapedData.socialLinks || [])}
 
-## Scraped page content (use this for accurate service descriptions, about text, etc.):
+## Scraped page content (use for accurate service descriptions, about text, etc.):
 ${scrapedData.rawText?.slice(0, 6000) || "No text content available"}
 
-## Available Images (use these in sections where appropriate):
+## Available Images:
 ${imageRefs.length > 0 ? imageRefs.join("\n") : "No images available — leave image fields empty or use placeholder references"}
 
-## Design Preset: ${preset}
+## Industry Intelligence
+
+${ctaInstructions}
+
+### Trust Signals (use as benefit items or standalone badges)
+${trustSignals}
+
+### Benefit Themes to Emphasize
+${benefitThemes}
+
+### Headline Inspirations (adapt to this business, don't copy verbatim)
+${headlinePatterns}
+
+### FAQ Templates (adapt to this specific business)
+${faqTemplates}
+
+## Design Configuration
+### Preset: ${preset}
 ${JSON.stringify(design, null, 2)}
 
-## Pages to Generate (with section order per preset):
-${pageSlugs
-  .map(
-    (slug) =>
-      `### ${pageLabels[slug as keyof typeof pageLabels]} (slug: "${slug === "home" ? "" : slug}")
-- navLabel: "${navLabels[slug as keyof typeof navLabels]}"
-- Sections in order: ${JSON.stringify(pageLayouts[slug])}`
-  )
-  .join("\n\n")}
+### Industry Design Hints
+${designHintText}
+
+## Pages to Generate (blueprint: "${blueprint.name}"):
+${pageInstructions}
 
 ## Required JSON Structure:
 {
@@ -104,20 +187,19 @@ ${pageSlugs
   "status": "preview",
   "meta": {
     "businessName": "...",
-    "industry": "${industry || ""}",
+    "industry": "${profile.id}",
     "language": "${language}",
-    // ... other meta fields from scraped data
+    // ... other meta fields from scraped data (phone, email, address, openingHours, socialLinks)
   },
   "design": ${JSON.stringify(design)},
   "pages": [
-    // Each page: { id, slug, title, navLabel, showInNav, sections: [...] }
+    // Each page from the blueprint above
     // Each section must have: id (uuid), type, visible: true, paddingTop, paddingBottom, background
     // Plus type-specific fields matching the schema
   ],
   "assets": {
-    "images": [
-      // { id, filename, originalUrl, mimeType }
-    ]
+    "images": [],
+    "scrapedImagesAllowed": false
   }
 }
 
@@ -137,85 +219,101 @@ ${pageSlugs
 
 IMPORTANT: Output ONLY the JSON object. No markdown code fences. No explanation.
 Use real UUIDs (format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx) for all id fields.
-Language: ${language === "de" ? "German" : "English"}`;
+Language: ${language === "de" ? "German" : "English"}
+Do NOT fabricate real reviews or certifications. Use placeholder templates.
+Do NOT copy original website text verbatim — always rewrite professionally.`;
 }
+
+// ── Sanitizer ─────────────────────────────────────────────
 
 const VALID_PADDINGS = new Set(["none", "sm", "md", "lg"]);
 const VALID_BACKGROUNDS = new Set(["default", "surface", "primary", "dark"]);
 
-/**
- * Fix common LLM mistakes in generated JSON before Zod validation.
- */
 function sanitizeLLMOutput(data: any): void {
   if (!data?.pages) return;
   for (const page of data.pages) {
     if (!page?.sections) continue;
     for (const section of page.sections) {
-      // Fix invalid padding values
       if (!VALID_PADDINGS.has(section.paddingTop)) section.paddingTop = "md";
       if (!VALID_PADDINGS.has(section.paddingBottom)) section.paddingBottom = "md";
-      // Fix invalid background values
       if (!VALID_BACKGROUNDS.has(section.background)) section.background = "default";
-      // Ensure visible is boolean
       if (section.visible === undefined) section.visible = true;
-      // Fix cta_banner missing buttons
       if (section.type === "cta_banner" && !section.buttons) {
         section.buttons = [{ label: "Kontakt", href: "#contact", variant: "primary" }];
       }
-      // Fix hero missing buttons
       if (section.type === "hero" && !section.buttons) {
         section.buttons = [];
       }
     }
   }
+  // Ensure assets has scrapedImagesAllowed
+  if (data.assets && data.assets.scrapedImagesAllowed === undefined) {
+    data.assets.scrapedImagesAllowed = false;
+  }
 }
+
+// ── Main generate function ────────────────────────────────
 
 export async function generateSiteProject(
   options: GenerateOptions
 ): Promise<SiteProject> {
-  const { onProgress } = options;
+  const { onProgress, scrapedData, preset, industry, projectId } = options;
   const adapter = createLLMAdapter();
 
-  onProgress?.("Generating website content with AI...");
+  // Step 1: Classify industry
+  onProgress?.("Classifying industry...");
+  const classification = await classifyIndustry(scrapedData, industry);
 
-  const systemPrompt = buildSystemPrompt(options.language);
-  const userPrompt = buildGenerationPrompt(options);
+  // Step 2: Load profile
+  const industryId = classification.industryId as IndustryId;
+  const profile = getIndustryProfile(industryId);
+  onProgress?.(
+    `Industry detected: ${profile.label.en} (${Math.round(classification.confidence * 100)}%)`
+  );
 
-  onProgress?.(`Using ${adapter.name} to generate...`);
+  // Step 3: Select blueprint
+  const seed = options.seed || projectId || v4();
+  const blueprint = selectBlueprint(industryId, preset, seed);
+  onProgress?.(`Using blueprint: ${blueprint.name}`);
 
+  // Step 4: Build prompts with industry intelligence
+  const systemPrompt = buildSystemPrompt(options.language, profile);
+  const userPrompt = buildGenerationPrompt(options, profile, blueprint, classification);
+
+  // Step 5: Call LLM
+  onProgress?.(`Generating with ${adapter.name}...`);
   const raw = await adapter.chat(
     [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    { maxTokens: 8192, temperature: 0.7 }
+    { maxTokens: 12000, temperature: 0.7 }
   );
 
+  // Step 6: Parse response
   onProgress?.("Parsing generated project...");
-
-  // Clean up response — remove potential markdown fences
   let jsonStr = raw.trim();
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   }
 
-  let parsed: unknown;
+  let parsed: any;
   try {
     parsed = JSON.parse(jsonStr);
   } catch (err) {
-    // Try to extract JSON from response
     const match = jsonStr.match(/\{[\s\S]*\}/);
     if (match) {
       parsed = JSON.parse(match[0]);
     } else {
-      throw new Error(`Failed to parse LLM response as JSON: ${(err as Error).message}\nRaw response (first 500 chars): ${jsonStr.slice(0, 500)}`);
+      throw new Error(
+        `Failed to parse LLM response as JSON: ${(err as Error).message}\nRaw response (first 500 chars): ${jsonStr.slice(0, 500)}`
+      );
     }
   }
 
-  // Fix common LLM output mistakes before validation
+  // Step 7: Sanitize + Validate
   sanitizeLLMOutput(parsed);
 
-  // Validate with Zod (lenient: strip unknown fields)
   let project: SiteProject;
   try {
     project = SiteProjectSchema.parse(parsed);
@@ -227,13 +325,15 @@ export async function generateSiteProject(
     throw new Error(`Generated JSON failed schema validation:\n${issues}`);
   }
 
+  // Step 8: Attach classification to project meta
+  project.meta.industryClassification = classification as any;
+
   onProgress?.("Website project generated successfully!");
   return project;
 }
 
-/**
- * AI action: rewrite a section's text content
- */
+// ── AI Actions (unchanged) ────────────────────────────────
+
 export async function aiRewriteSection(
   section: Record<string, unknown>,
   style: "shorter" | "longer" | "formal" | "friendly",
@@ -260,9 +360,6 @@ export async function aiRewriteSection(
   return JSON.parse(jsonStr);
 }
 
-/**
- * AI action: generate FAQ items
- */
 export async function aiGenerateFaqs(
   businessName: string,
   industry: string,
@@ -290,9 +387,6 @@ export async function aiGenerateFaqs(
   return JSON.parse(jsonStr);
 }
 
-/**
- * AI action: generate a new page from a short prompt
- */
 export async function aiGeneratePage(
   prompt: string,
   businessName: string,

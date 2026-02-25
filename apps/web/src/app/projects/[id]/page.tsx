@@ -44,6 +44,7 @@ export default function BuilderPage() {
     updateDesign,
     updateMeta,
     save,
+    reload,
   } = useProject(id);
 
   const [activePageId, setActivePageId] = useState<string>("");
@@ -276,10 +277,20 @@ export default function BuilderPage() {
                 }}
                 onAddPage={addPage}
                 onAddSection={(section) => addSection(activePage.id, section)}
+                onProjectReloaded={reload}
               />
             )}
             {rightPanel === "media" && (
-              <MediaLibrary projectId={project.id} />
+              <MediaLibrary
+                projectId={project.id}
+                scrapedImagesAllowed={project.assets?.scrapedImagesAllowed ?? false}
+                onToggleScrapedImages={(allowed) => {
+                  save({
+                    ...project,
+                    assets: { ...project.assets, scrapedImagesAllowed: allowed },
+                  });
+                }}
+              />
             )}
           </div>
         </div>

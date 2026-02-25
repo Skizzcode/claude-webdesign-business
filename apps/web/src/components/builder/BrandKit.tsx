@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { Design, Meta } from "@website-engine/core";
+import { INDUSTRIES } from "@website-engine/core";
 
 interface BrandKitProps {
   design: Design;
@@ -40,6 +41,33 @@ export function BrandKit({ design, meta, onUpdateDesign, onUpdateMeta }: BrandKi
       <div>
         <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Business Info</h4>
         <div className="space-y-2">
+          {/* Industry display */}
+          {meta.industryClassification && (
+            <div className="p-2.5 bg-blue-50 rounded-md border border-blue-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-medium text-blue-700">Detected Industry</label>
+                  <p className="text-xs text-blue-600">
+                    {INDUSTRIES.find((i) => i.value === meta.industryClassification?.industryId)?.label.de || meta.industryClassification.industryId}
+                    {" "}({Math.round((meta.industryClassification.confidence || 0) * 100)}%)
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div>
+            <label className="text-xs font-medium text-gray-600">Industry</label>
+            <select
+              value={meta.industry || ""}
+              onChange={(e) => onUpdateMeta((m) => ({ ...m, industry: e.target.value }))}
+              className="w-full text-xs px-2.5 py-1.5 border rounded-md bg-white outline-none focus:ring-1 focus:ring-blue-400"
+            >
+              <option value="">Not set</option>
+              {INDUSTRIES.map((ind) => (
+                <option key={ind.value} value={ind.value}>{ind.label.de}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="text-xs font-medium text-gray-600">Business Name</label>
             <input type="text" value={meta.businessName || ""} onChange={(e) => onUpdateMeta((m) => ({ ...m, businessName: e.target.value }))} className="w-full text-xs px-2.5 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-400" />

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { searchPexels, downloadPexelsPhoto, saveUploadedFile, listProjectImages } from "../services/media";
+import { searchPexels, downloadPexelsPhoto, saveUploadedFile, listProjectImages, listScrapedImages } from "../services/media";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -58,6 +58,16 @@ router.get("/images/:projectId", async (req, res) => {
     res.json(images);
   } catch (err) {
     res.status(500).json({ error: "Failed to list images", details: String(err) });
+  }
+});
+
+// List scraped (client) images separately
+router.get("/scraped-images/:projectId", async (req, res) => {
+  try {
+    const images = await listScrapedImages(req.params.projectId);
+    res.json(images);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to list scraped images", details: String(err) });
   }
 });
 

@@ -10,5 +10,8 @@ export * from "./presets/index";
 // ── Section Registry ─────────────────────────────────────
 export { createDefaultSection, SECTION_LABELS } from "./section-registry";
 
+// ── Industry Intelligence ───────────────────────────────
+export * from "./industry/index";
+
 // ── Utils ────────────────────────────────────────────────
 export { v4, slugify, truncate, safeJsonParse, INDUSTRIES } from "./utils";

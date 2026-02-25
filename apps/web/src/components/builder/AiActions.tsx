@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sparkles, Loader2, RefreshCw, HelpCircle, FileText } from "lucide-react";
+import { Sparkles, Loader2, RefreshCw, HelpCircle, FileText, RotateCcw } from "lucide-react";
 import { api } from "@/lib/api";
 import { v4, createDefaultSection } from "@website-engine/core";
 import type { SiteProject, Page, Section } from "@website-engine/core";
@@ -13,6 +13,7 @@ interface AiActionsProps {
   onUpdateSection: (updated: Section) => void;
   onAddPage: (page: Page) => void;
   onAddSection: (section: Section) => void;
+  onProjectReloaded?: () => void;
 }
 
 export function AiActions({
@@ -22,12 +23,15 @@ export function AiActions({
   onUpdateSection,
   onAddPage,
   onAddSection,
+  onProjectReloaded,
 }: AiActionsProps) {
   const [rewriteStyle, setRewriteStyle] = useState<string>("shorter");
   const [rewriting, setRewriting] = useState(false);
   const [generatingFaqs, setGeneratingFaqs] = useState(false);
   const [pagePrompt, setPagePrompt] = useState("");
   const [generatingPage, setGeneratingPage] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenPreset, setRegenPreset] = useState(project.design.stylePreset);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const lang = project.meta.language || "de";
@@ -154,6 +158,48 @@ export function AiActions({
         >
           {generatingFaqs ? <Loader2 size={14} className="animate-spin" /> : <HelpCircle size={14} />}
           {generatingFaqs ? "Generating..." : "Generate 6 FAQs"}
+        </button>
+      </div>
+
+      {/* Regenerate Theme */}
+      <div>
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          <RotateCcw size={12} /> Regenerate Theme
+        </h4>
+        <p className="text-xs text-gray-500 mb-2">
+          Keep business info, regenerate visuals, layout &amp; copy.
+        </p>
+        <select
+          value={regenPreset}
+          onChange={(e) => setRegenPreset(e.target.value as typeof regenPreset)}
+          className="w-full text-xs px-2.5 py-1.5 border rounded-md bg-white outline-none mb-2"
+        >
+          <option value="modern_clean">Modern Clean</option>
+          <option value="bold">Bold</option>
+          <option value="elegant">Elegant</option>
+        </select>
+        <button
+          onClick={async () => {
+            setRegenerating(true);
+            try {
+              await api.regenerateTheme({
+                projectId: project.id,
+                preset: regenPreset,
+                language: lang,
+                industryId: project.meta.industry || undefined,
+              });
+              showMessage("Theme regenerated! Reloading...", "success");
+              onProjectReloaded?.();
+            } catch (err) {
+              showMessage("Regeneration failed: " + err, "error");
+            }
+            setRegenerating(false);
+          }}
+          disabled={regenerating}
+          className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 transition"
+        >
+          {regenerating ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+          {regenerating ? "Regenerating..." : "Regenerate Theme"}
         </button>
       </div>
 

@@ -4,10 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { INDUSTRIES } from "@website-engine/core";
-import { ArrowLeft, Globe, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, Globe, Loader2, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
 
-type Step = "input" | "scraping" | "generating" | "done" | "error";
+type Step = "input" | "scraping" | "classifying" | "generating" | "done" | "error";
+
+interface Classification {
+  industryId: string;
+  confidence: number;
+  topCandidates?: { id: string; confidence: number; reason: string }[];
+}
 
 const PRESETS = [
   {
@@ -30,6 +36,11 @@ const PRESETS = [
   },
 ];
 
+function getIndustryLabel(value: string): string {
+  const found = INDUSTRIES.find((i) => i.value === value);
+  return found?.label.de || value;
+}
+
 export default function NewProjectPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("input");
@@ -40,6 +51,7 @@ export default function NewProjectPage() {
   const [progress, setProgress] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [classification, setClassification] = useState<Classification | null>(null);
 
   const handleGenerate = async () => {
     if (!url) return;
@@ -66,7 +78,26 @@ export default function NewProjectPage() {
 
       setProgress((prev) => [...prev, "Scrape complete!"]);
 
-      // Step 2: Generate
+      // Step 2: Classify industry (if not manually selected)
+      if (!industry) {
+        setStep("classifying");
+        setProgress((prev) => [...prev, "Detecting industry..."]);
+
+        try {
+          const cls = await api.classifyIndustry(scrapeRes.projectId);
+          setClassification(cls);
+          setIndustry(cls.industryId);
+          setProgress((prev) => [
+            ...prev,
+            `Industry detected: ${getIndustryLabel(cls.industryId)} (${Math.round(cls.confidence * 100)}%)`,
+          ]);
+        } catch {
+          // Classification failed — continue with "other"
+          setIndustry("other");
+        }
+      }
+
+      // Step 3: Generate
       setStep("generating");
       setProgress((prev) => [...prev, "Generating website with AI..."]);
 
@@ -85,6 +116,30 @@ export default function NewProjectPage() {
     }
   };
 
+  const handleConfirmIndustry = async (selectedId: string) => {
+    setIndustry(selectedId);
+
+    // Continue to generation
+    setStep("generating");
+    setProgress((prev) => [...prev, `Industry confirmed: ${getIndustryLabel(selectedId)}`, "Generating website with AI..."]);
+
+    try {
+      await api.generateSite({
+        projectId,
+        preset,
+        language,
+        industry: selectedId,
+      });
+
+      setStep("done");
+      setProgress((prev) => [...prev, "Website generated!"]);
+    } catch (err) {
+      setError(String(err));
+      setStep("error");
+    }
+  };
+
+  // ── Done ────────────────────────────────────────────────
   if (step === "done") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -108,6 +163,7 @@ export default function NewProjectPage() {
     );
   }
 
+  // ── Error ───────────────────────────────────────────────
   if (step === "error") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -126,14 +182,96 @@ export default function NewProjectPage() {
     );
   }
 
-  if (step === "scraping" || step === "generating") {
+  // ── Classifying — show detected industry with override ──
+  if (step === "classifying" && classification) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-sm border p-8 max-w-lg w-full">
+          <div className="flex items-center gap-3 mb-6">
+            <Sparkles size={24} className="text-blue-600" />
+            <h2 className="text-lg font-bold">Industry Detected</h2>
+          </div>
+
+          <div className="mb-6">
+            <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200 mb-3">
+              <div className="flex-1">
+                <p className="font-medium text-blue-900">
+                  {getIndustryLabel(classification.industryId)}
+                </p>
+                <p className="text-sm text-blue-600">
+                  {Math.round(classification.confidence * 100)}% confidence
+                </p>
+              </div>
+              <button
+                onClick={() => handleConfirmIndustry(classification.industryId)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+              >
+                Confirm
+              </button>
+            </div>
+
+            {classification.topCandidates && classification.topCandidates.length > 1 && (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-500">Or choose another:</p>
+                {classification.topCandidates
+                  .filter((c) => c.id !== classification.industryId)
+                  .map((candidate) => (
+                    <button
+                      key={candidate.id}
+                      onClick={() => handleConfirmIndustry(candidate.id)}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition text-left"
+                    >
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{getIndustryLabel(candidate.id)}</p>
+                        <p className="text-xs text-gray-400">
+                          {Math.round(candidate.confidence * 100)}% — {candidate.reason}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <div className="border-t pt-4">
+            <label className="block text-sm text-gray-500 mb-2">Or select manually:</label>
+            <select
+              value={industry}
+              onChange={(e) => handleConfirmIndustry(e.target.value)}
+              className="w-full px-3 py-2.5 border rounded-lg bg-white text-sm"
+            >
+              {INDUSTRIES.map((ind) => (
+                <option key={ind.value} value={ind.value}>
+                  {ind.label.de}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Progress log */}
+          <div className="mt-4 space-y-1 max-h-32 overflow-y-auto">
+            {progress.map((msg, i) => (
+              <p key={i} className="text-xs text-gray-400 font-mono">{msg}</p>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Scraping / Generating ───────────────────────────────
+  if (step === "scraping" || step === "generating" || step === "classifying") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-sm border p-8 max-w-lg w-full">
           <div className="flex items-center gap-3 mb-6">
             <Loader2 size={24} className="text-blue-600 animate-spin" />
             <h2 className="text-lg font-bold">
-              {step === "scraping" ? "Scraping website..." : "Generating your new website..."}
+              {step === "scraping"
+                ? "Scraping website..."
+                : step === "classifying"
+                ? "Detecting industry..."
+                : "Generating your new website..."}
             </h2>
           </div>
           <div className="space-y-1 max-h-64 overflow-y-auto">
@@ -151,6 +289,7 @@ export default function NewProjectPage() {
     );
   }
 
+  // ── Input Form ──────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
@@ -189,7 +328,7 @@ export default function NewProjectPage() {
           {/* Industry */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Industry (optional)
+              Industry (optional — auto-detected after scraping)
             </label>
             <select
               value={industry}

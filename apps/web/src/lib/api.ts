@@ -88,6 +88,29 @@ export const api = {
   listProjectImages: (projectId: string) =>
     request<any>(`/api/media/images/${projectId}`),
 
+  listScrapedImages: (projectId: string) =>
+    request<any>(`/api/media/scraped-images/${projectId}`),
+
+  // Industry Classification
+  classifyIndustry: (projectId: string, userHint?: string) =>
+    request<any>("/api/generate/classify", {
+      method: "POST",
+      body: JSON.stringify({ projectId, userHint }),
+    }),
+
+  // Regenerate theme (keep business data, new visuals/layout)
+  regenerateTheme: (opts: {
+    projectId: string;
+    preset?: string;
+    language?: string;
+    industryId?: string;
+    seed?: string;
+  }) =>
+    request<any>("/api/generate/regenerate", {
+      method: "POST",
+      body: JSON.stringify(opts),
+    }),
+
   // Export
   exportProject: (projectId: string) =>
     request<any>(`/api/export/${projectId}`, { method: "POST" }),

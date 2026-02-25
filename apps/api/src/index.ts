@@ -19,10 +19,11 @@ const PORT = process.env.API_PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
-// Serve project assets statically
+// Serve project assets statically (resolve relative to source file, not cwd)
+const DATA_DIR = path.resolve(__dirname, "../data/projects");
 app.use(
   "/data/projects",
-  express.static(path.resolve(process.cwd(), "data", "projects"))
+  express.static(DATA_DIR)
 );
 
 // API routes
@@ -47,5 +48,5 @@ process.on("unhandledRejection", (reason) => {
 
 app.listen(PORT, () => {
   console.log(`\n  🚀 Website Engine API running on http://localhost:${PORT}`);
-  console.log(`  📁 Data directory: ${path.resolve(process.cwd(), "data", "projects")}\n`);
+  console.log(`  📁 Data directory: ${DATA_DIR}\n`);
 });

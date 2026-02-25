@@ -2,7 +2,8 @@ import fs from "fs/promises";
 import path from "path";
 import { SiteProjectSchema, type SiteProject } from "@website-engine/core";
 
-const DATA_DIR = path.resolve(process.cwd(), "data", "projects");
+// Resolve data dir relative to this file so it works regardless of cwd
+const DATA_DIR = path.resolve(__dirname, "../../data/projects");
 
 async function ensureDir(dir: string) {
   await fs.mkdir(dir, { recursive: true });

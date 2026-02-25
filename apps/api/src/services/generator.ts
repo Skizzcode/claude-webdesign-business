@@ -229,6 +229,13 @@ Do NOT copy original website text verbatim — always rewrite professionally.`;
 const VALID_PADDINGS = new Set(["none", "sm", "md", "lg"]);
 const VALID_BACKGROUNDS = new Set(["default", "surface", "primary", "dark"]);
 
+/** Fix image fields: LLM often returns a string instead of {src, alt} */
+function fixImageField(obj: any, key: string): void {
+  if (obj[key] && typeof obj[key] === "string") {
+    obj[key] = { src: obj[key], alt: "" };
+  }
+}
+
 function sanitizeLLMOutput(data: any): void {
   if (!data?.pages) return;
   for (const page of data.pages) {
@@ -244,11 +251,39 @@ function sanitizeLLMOutput(data: any): void {
       if (section.type === "hero" && !section.buttons) {
         section.buttons = [];
       }
+
+      // Fix image fields (LLM often returns string instead of {src, alt})
+      fixImageField(section, "image");
+
+      // Fix image fields inside arrays (items, members, images, tiers)
+      const arrayKeys = ["items", "members", "images", "tiers"];
+      for (const arrKey of arrayKeys) {
+        if (Array.isArray(section[arrKey])) {
+          for (const item of section[arrKey]) {
+            if (item && typeof item === "object") {
+              fixImageField(item, "image");
+              // Gallery images: {src, alt} stored directly
+              if (arrKey === "images" && typeof item.src === "undefined" && typeof item === "string") {
+                // Handle case where gallery images array contains plain strings
+                const idx = section[arrKey].indexOf(item);
+                section[arrKey][idx] = { src: item, alt: "" };
+              }
+            }
+          }
+        }
+      }
     }
   }
   // Ensure assets has scrapedImagesAllowed
   if (data.assets && data.assets.scrapedImagesAllowed === undefined) {
     data.assets.scrapedImagesAllowed = false;
+  }
+  // Ensure assets exists
+  if (!data.assets) {
+    data.assets = { images: [], scrapedImagesAllowed: false };
+  }
+  if (!data.assets.images) {
+    data.assets.images = [];
   }
 }
 

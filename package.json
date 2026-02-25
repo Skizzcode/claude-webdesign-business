@@ -1,0 +1,21 @@
+{
+  "name": "website-engine",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/api & npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=packages/core && npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "scrape": "npm run scrape --workspace=apps/api --",
+    "generate": "npm run generate --workspace=apps/api --",
+    "export": "npm run export --workspace=apps/api --"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

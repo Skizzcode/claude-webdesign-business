@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.next/
+data/projects/
+exports/
+.env
+*.log
+.turbo

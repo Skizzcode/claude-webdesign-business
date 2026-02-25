@@ -1,0 +1,541 @@
+import fs from "fs/promises";
+import path from "path";
+import { type SiteProject } from "@website-engine/core";
+import { loadProject, getProjectDir } from "../storage/projects";
+
+const EXPORTS_DIR = path.resolve(process.cwd(), "exports");
+const TEMPLATE_DIR = path.resolve(process.cwd(), "templates", "next-export");
+
+export interface ExportOptions {
+  projectId: string;
+  onProgress?: (msg: string) => void;
+}
+
+function log(opts: ExportOptions, msg: string) {
+  opts.onProgress?.(msg);
+  console.log(`[exporter] ${msg}`);
+}
+
+async function copyDir(src: string, dest: string) {
+  await fs.mkdir(dest, { recursive: true });
+  const entries = await fs.readdir(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      await copyDir(srcPath, destPath);
+    } else {
+      await fs.copyFile(srcPath, destPath);
+    }
+  }
+}
+
+export async function exportProject(options: ExportOptions): Promise<string> {
+  const { projectId } = options;
+
+  log(options, `Starting export for project ${projectId}`);
+
+  // Load project data
+  const project = await loadProject(projectId);
+  const projectDir = await getProjectDir(projectId);
+
+  // Create export directory
+  const exportDir = path.join(EXPORTS_DIR, projectId);
+  await fs.rm(exportDir, { recursive: true, force: true });
+  await fs.mkdir(exportDir, { recursive: true });
+
+  log(options, "Copying Next.js template...");
+
+  // Copy template
+  try {
+    await copyDir(TEMPLATE_DIR, exportDir);
+  } catch (err) {
+    log(options, "Template not found, creating from scratch...");
+    await createExportFromScratch(exportDir, project);
+  }
+
+  // Write project data
+  const publicDir = path.join(exportDir, "public");
+  await fs.mkdir(publicDir, { recursive: true });
+  await fs.writeFile(
+    path.join(publicDir, "project.json"),
+    JSON.stringify(project, null, 2)
+  );
+
+  // Copy assets
+  const assetsDir = path.join(projectDir, "assets");
+  const exportAssetsDir = path.join(publicDir, "assets");
+  try {
+    await copyDir(assetsDir, exportAssetsDir);
+    log(options, "Copied project assets");
+  } catch {
+    log(options, "No assets to copy");
+  }
+
+  // Update project status
+  project.status = "exported";
+  project.updatedAt = new Date().toISOString();
+
+  log(options, `Export complete: ${exportDir}`);
+  return exportDir;
+}
+
+async function createExportFromScratch(
+  exportDir: string,
+  project: SiteProject
+) {
+  // package.json
+  await fs.writeFile(
+    path.join(exportDir, "package.json"),
+    JSON.stringify(
+      {
+        name: `site-${project.id.slice(0, 8)}`,
+        version: "1.0.0",
+        private: true,
+        scripts: {
+          dev: "next dev",
+          build: "next build",
+          start: "next start",
+        },
+        dependencies: {
+          next: "^14.2.0",
+          react: "^18.3.0",
+          "react-dom": "^18.3.0",
+          "lucide-react": "^0.460.0",
+        },
+        devDependencies: {
+          typescript: "^5.4.0",
+          "@types/react": "^18.3.0",
+          "@types/node": "^20.0.0",
+          tailwindcss: "^3.4.0",
+          postcss: "^8.4.0",
+          autoprefixer: "^10.4.0",
+        },
+      },
+      null,
+      2
+    )
+  );
+
+  // next.config.js
+  await fs.writeFile(
+    path.join(exportDir, "next.config.js"),
+    `/** @type {import('next').NextConfig} */
+module.exports = {
+  output: 'standalone',
+};
+`
+  );
+
+  // tsconfig.json
+  await fs.writeFile(
+    path.join(exportDir, "tsconfig.json"),
+    JSON.stringify(
+      {
+        compilerOptions: {
+          target: "es5",
+          lib: ["dom", "dom.iterable", "esnext"],
+          allowJs: true,
+          skipLibCheck: true,
+          strict: true,
+          noEmit: true,
+          esModuleInterop: true,
+          module: "esnext",
+          moduleResolution: "bundler",
+          resolveJsonModule: true,
+          isolatedModules: true,
+          jsx: "preserve",
+          incremental: true,
+          plugins: [{ name: "next" }],
+          paths: { "@/*": ["./src/*"] },
+        },
+        include: ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+        exclude: ["node_modules"],
+      },
+      null,
+      2
+    )
+  );
+
+  // tailwind.config.ts
+  await fs.writeFile(
+    path.join(exportDir, "tailwind.config.ts"),
+    `import type { Config } from 'tailwindcss';
+const config: Config = {
+  content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
+  theme: {
+    extend: {
+      colors: {
+        primary: '${project.design.palette.primary}',
+        secondary: '${project.design.palette.secondary}',
+        surface: '${project.design.palette.surface}',
+      },
+    },
+  },
+  plugins: [],
+};
+export default config;
+`
+  );
+
+  // postcss.config.js
+  await fs.writeFile(
+    path.join(exportDir, "postcss.config.js"),
+    `module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } };
+`
+  );
+
+  // Create src/app directories
+  const appDir = path.join(exportDir, "src", "app");
+  await fs.mkdir(appDir, { recursive: true });
+
+  // globals.css
+  await fs.writeFile(
+    path.join(appDir, "globals.css"),
+    `@tailwind base;
+@tailwind components;
+@tailwind utilities;
+`
+  );
+
+  // layout.tsx
+  await fs.writeFile(
+    path.join(appDir, "layout.tsx"),
+    `import './globals.css';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: '${project.meta.businessName}',
+  description: '${project.meta.businessName} - Professionelle Website',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="${project.meta.language || "de"}">
+      <body>{children}</body>
+    </html>
+  );
+}
+`
+  );
+
+  // page.tsx - reads from project.json and renders
+  await fs.writeFile(
+    path.join(appDir, "page.tsx"),
+    `import projectData from '../../public/project.json';
+import { SiteRenderer } from '../components/SiteRenderer';
+
+export default function Home() {
+  const homePage = projectData.pages.find((p: any) => p.slug === '' || p.slug === 'home') || projectData.pages[0];
+  return <SiteRenderer page={homePage} project={projectData} />;
+}
+`
+  );
+
+  // Dynamic [slug] route
+  const slugDir = path.join(appDir, "[slug]");
+  await fs.mkdir(slugDir, { recursive: true });
+  await fs.writeFile(
+    path.join(slugDir, "page.tsx"),
+    `import projectData from '../../../public/project.json';
+import { SiteRenderer } from '../../components/SiteRenderer';
+import { notFound } from 'next/navigation';
+
+export function generateStaticParams() {
+  return projectData.pages
+    .filter((p: any) => p.slug && p.slug !== 'home')
+    .map((p: any) => ({ slug: p.slug }));
+}
+
+export default function Page({ params }: { params: { slug: string } }) {
+  const page = projectData.pages.find((p: any) => p.slug === params.slug);
+  if (!page) notFound();
+  return <SiteRenderer page={page} project={projectData} />;
+}
+`
+  );
+
+  // Create a minimal SiteRenderer component
+  const componentsDir = path.join(exportDir, "src", "components");
+  await fs.mkdir(componentsDir, { recursive: true });
+  await fs.writeFile(
+    path.join(componentsDir, "SiteRenderer.tsx"),
+    `'use client';
+
+export function SiteRenderer({ page, project }: { page: any; project: any }) {
+  const { design, meta } = project;
+
+  return (
+    <div style={{ fontFamily: design.typography.bodyFont + ', sans-serif' }}>
+      {/* Navigation */}
+      <nav style={{ backgroundColor: design.palette.primary, color: '#fff', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong style={{ fontSize: '1.25rem' }}>{meta.businessName}</strong>
+        <div style={{ display: 'flex', gap: '1.5rem' }}>
+          {project.pages.filter((p: any) => p.showInNav !== false).map((p: any) => (
+            <a key={p.id} href={p.slug === '' || p.slug === 'home' ? '/' : '/' + p.slug} style={{ color: '#fff', textDecoration: 'none' }}>
+              {p.navLabel}
+            </a>
+          ))}
+        </div>
+      </nav>
+
+      {/* Sections */}
+      {page.sections.filter((s: any) => s.visible !== false).map((section: any) => (
+        <SectionRenderer key={section.id} section={section} design={design} meta={meta} />
+      ))}
+    </div>
+  );
+}
+
+function SectionRenderer({ section, design, meta }: { section: any; design: any; meta: any }) {
+  const bgMap: Record<string, string> = {
+    default: design.palette.background,
+    surface: design.palette.surface,
+    primary: design.palette.primary,
+    dark: '#1a1a1a',
+  };
+  const textColor = section.background === 'primary' || section.background === 'dark' ? '#fff' : design.palette.text;
+  const bg = bgMap[section.background] || design.palette.background;
+  const padding = { none: '0', sm: '2rem 0', md: '4rem 0', lg: '6rem 0' };
+
+  const style = { backgroundColor: bg, color: textColor, padding: padding[section.paddingTop as string] || '4rem 0' };
+
+  switch (section.type) {
+    case 'hero':
+      return (
+        <section style={{ ...style, textAlign: section.layout === 'centered' ? 'center' : 'left', padding: '6rem 2rem' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <h1 style={{ fontSize: '3rem', fontWeight: 700, fontFamily: design.typography.headingFont + ', serif', marginBottom: '1rem' }}>{section.headline}</h1>
+            {section.subheadline && <p style={{ fontSize: '1.25rem', color: design.palette.textMuted, marginBottom: '2rem' }}>{section.subheadline}</p>}
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: section.layout === 'centered' ? 'center' : 'flex-start' }}>
+              {section.buttons?.map((btn: any, i: number) => (
+                <a key={i} href={btn.href} style={{ display: 'inline-block', padding: '0.75rem 1.5rem', borderRadius: design.radius + 'px', backgroundColor: btn.variant === 'primary' ? design.palette.primary : 'transparent', color: btn.variant === 'primary' ? '#fff' : design.palette.primary, border: btn.variant !== 'primary' ? '2px solid ' + design.palette.primary : 'none', textDecoration: 'none', fontWeight: 600 }}>
+                  {btn.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+
+    case 'benefits':
+      return (
+        <section style={style}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+            {section.headline && <h2 style={{ fontSize: '2rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', fontFamily: design.typography.headingFont }}>{section.headline}</h2>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(' + (section.columns || 3) + ', 1fr)', gap: '2rem' }}>
+              {section.items?.map((item: any, i: number) => (
+                <div key={i} style={{ textAlign: 'center', padding: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>{item.title}</h3>
+                  <p style={{ color: design.palette.textMuted }}>{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+
+    case 'services':
+      return (
+        <section style={style}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+            {section.headline && <h2 style={{ fontSize: '2rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', fontFamily: design.typography.headingFont }}>{section.headline}</h2>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
+              {section.items?.map((item: any, i: number) => (
+                <div key={i} style={{ padding: '2rem', borderRadius: design.radius + 'px', backgroundColor: design.palette.surface, border: '1px solid ' + design.palette.textMuted + '22' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>{item.title}</h3>
+                  <p style={{ color: design.palette.textMuted }}>{item.description}</p>
+                  {item.price && <p style={{ fontWeight: 600, marginTop: '1rem', color: design.palette.primary }}>{item.price}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+
+    case 'testimonials':
+      return (
+        <section style={style}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+            {section.headline && <h2 style={{ fontSize: '2rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', fontFamily: design.typography.headingFont }}>{section.headline}</h2>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+              {section.items?.map((item: any, i: number) => (
+                <blockquote key={i} style={{ padding: '2rem', borderRadius: design.radius + 'px', backgroundColor: design.palette.surface, borderLeft: '4px solid ' + design.palette.primary }}>
+                  <p style={{ fontStyle: 'italic', marginBottom: '1rem' }}>"{item.quote}"</p>
+                  <footer style={{ fontWeight: 600 }}>— {item.author}{item.role ? ', ' + item.role : ''}</footer>
+                  {item.rating && <div style={{ color: '#f59e0b', marginTop: '0.5rem' }}>{'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</div>}
+                </blockquote>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+
+    case 'faq':
+      return (
+        <section style={style}>
+          <div style={{ maxWidth: '800px', margin: '0 auto', padding: '0 2rem' }}>
+            {section.headline && <h2 style={{ fontSize: '2rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', fontFamily: design.typography.headingFont }}>{section.headline}</h2>}
+            {section.items?.map((item: any, i: number) => (
+              <details key={i} style={{ marginBottom: '1rem', padding: '1rem', borderRadius: design.radius + 'px', backgroundColor: design.palette.surface }}>
+                <summary style={{ fontWeight: 600, cursor: 'pointer' }}>{item.question}</summary>
+                <p style={{ marginTop: '0.75rem', color: design.palette.textMuted }}>{item.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+      );
+
+    case 'contact':
+      return (
+        <section style={style}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem' }}>
+            <div>
+              {section.headline && <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '1rem', fontFamily: design.typography.headingFont }}>{section.headline}</h2>}
+              {section.subtitle && <p style={{ color: design.palette.textMuted, marginBottom: '2rem' }}>{section.subtitle}</p>}
+              {section.showPhone && meta.phone && <p style={{ marginBottom: '0.5rem' }}>📞 {meta.phone}</p>}
+              {section.showEmail && meta.email && <p style={{ marginBottom: '0.5rem' }}>✉️ {meta.email}</p>}
+              {section.showAddress && meta.address && <p style={{ marginBottom: '0.5rem' }}>📍 {meta.address}</p>}
+              {section.showHours && meta.openingHours && <p style={{ marginBottom: '0.5rem' }}>🕐 {meta.openingHours}</p>}
+            </div>
+            <form style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {section.fields?.map((field: any) => (
+                <div key={field.name}>
+                  <label style={{ display: 'block', fontWeight: 500, marginBottom: '0.25rem' }}>{field.label}{field.required ? ' *' : ''}</label>
+                  {field.type === 'textarea' ? (
+                    <textarea name={field.name} required={field.required} rows={4} style={{ width: '100%', padding: '0.75rem', borderRadius: design.radius + 'px', border: '1px solid #ccc' }} />
+                  ) : (
+                    <input type={field.type} name={field.name} required={field.required} style={{ width: '100%', padding: '0.75rem', borderRadius: design.radius + 'px', border: '1px solid #ccc' }} />
+                  )}
+                </div>
+              ))}
+              <button type="submit" style={{ padding: '0.75rem 2rem', borderRadius: design.radius + 'px', backgroundColor: design.palette.primary, color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}>
+                {section.submitLabel || 'Absenden'}
+              </button>
+            </form>
+          </div>
+        </section>
+      );
+
+    case 'map':
+      return (
+        <section style={style}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem', textAlign: 'center' }}>
+            {section.headline && <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '2rem', fontFamily: design.typography.headingFont }}>{section.headline}</h2>}
+            <div style={{ padding: '3rem', backgroundColor: design.palette.surface, borderRadius: design.radius + 'px' }}>
+              <p style={{ fontSize: '1.25rem' }}>📍 {section.address}</p>
+              {section.description && <p style={{ color: design.palette.textMuted, marginTop: '0.5rem' }}>{section.description}</p>}
+            </div>
+          </div>
+        </section>
+      );
+
+    case 'cta_banner':
+      return (
+        <section style={{ backgroundColor: design.palette.primary, color: '#fff', padding: '4rem 2rem', textAlign: 'center' }}>
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '1rem', fontFamily: design.typography.headingFont }}>{section.headline}</h2>
+            {section.subtitle && <p style={{ fontSize: '1.125rem', marginBottom: '2rem', opacity: 0.9 }}>{section.subtitle}</p>}
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              {section.buttons?.map((btn: any, i: number) => (
+                <a key={i} href={btn.href} style={{ display: 'inline-block', padding: '0.75rem 1.5rem', borderRadius: design.radius + 'px', backgroundColor: '#fff', color: design.palette.primary, textDecoration: 'none', fontWeight: 600 }}>
+                  {btn.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+
+    case 'footer':
+      return (
+        <footer style={{ backgroundColor: '#1a1a1a', color: '#ccc', padding: '3rem 2rem' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
+            {section.columns?.map((col: any, i: number) => (
+              <div key={i}>
+                <h4 style={{ color: '#fff', fontWeight: 600, marginBottom: '1rem' }}>{col.title}</h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {col.links?.map((link: any, j: number) => (
+                    <li key={j} style={{ marginBottom: '0.5rem' }}>
+                      <a href={link.href} style={{ color: '#ccc', textDecoration: 'none' }}>{link.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          {section.copyright && <p style={{ textAlign: 'center', marginTop: '2rem', opacity: 0.6 }}>{section.copyright}</p>}
+        </footer>
+      );
+
+    case 'gallery':
+      return (
+        <section style={style}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+            {section.headline && <h2 style={{ fontSize: '2rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', fontFamily: design.typography.headingFont }}>{section.headline}</h2>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(' + (section.columns || 3) + ', 1fr)', gap: '1rem' }}>
+              {section.images?.map((img: any, i: number) => (
+                <div key={i} style={{ borderRadius: design.radius + 'px', overflow: 'hidden', aspectRatio: '4/3', backgroundColor: design.palette.surface }}>
+                  {img.src && <img src={img.src} alt={img.alt} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+
+    case 'pricing':
+      return (
+        <section style={style}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+            {section.headline && <h2 style={{ fontSize: '2rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', fontFamily: design.typography.headingFont }}>{section.headline}</h2>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
+              {section.tiers?.map((tier: any, i: number) => (
+                <div key={i} style={{ padding: '2rem', borderRadius: design.radius + 'px', border: tier.highlighted ? '2px solid ' + design.palette.primary : '1px solid #e5e7eb', backgroundColor: tier.highlighted ? design.palette.primary + '08' : design.palette.surface, textAlign: 'center' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{tier.name}</h3>
+                  <p style={{ fontSize: '2rem', fontWeight: 700, color: design.palette.primary, margin: '1rem 0' }}>{tier.price}</p>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: '1rem 0' }}>
+                    {tier.features?.map((f: string, j: number) => (
+                      <li key={j} style={{ padding: '0.25rem 0' }}>✓ {f}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+
+    case 'team':
+      return (
+        <section style={style}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+            {section.headline && <h2 style={{ fontSize: '2rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', fontFamily: design.typography.headingFont }}>{section.headline}</h2>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem' }}>
+              {section.members?.map((member: any, i: number) => (
+                <div key={i} style={{ textAlign: 'center', padding: '1.5rem' }}>
+                  <div style={{ width: '120px', height: '120px', borderRadius: '50%', backgroundColor: design.palette.surface, margin: '0 auto 1rem', overflow: 'hidden' }}>
+                    {member.image?.src && <img src={member.image.src} alt={member.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  </div>
+                  <h3 style={{ fontWeight: 600 }}>{member.name}</h3>
+                  <p style={{ color: design.palette.textMuted }}>{member.role}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+
+    default:
+      return (
+        <section style={style}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem', textAlign: 'center' }}>
+            <p style={{ color: design.palette.textMuted }}>Unknown section type: {section.type}</p>
+          </div>
+        </section>
+      );
+  }
+}
+`
+  );
+}

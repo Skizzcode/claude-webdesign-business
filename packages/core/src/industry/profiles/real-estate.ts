@@ -79,9 +79,14 @@ export const realEstateProfile: IndustryProfile = {
   designHints: {
     paletteStrategy: "Edel und modern: Dunkelblau oder Anthrazit mit Gold/Kupfer-Akzent. Heller Hintergrund. Premium-Ausstrahlung. Alternativ warmes Grau mit Grün.",
     typographyHints: {
-      modern_clean: { heading: "Inter", body: "Inter" },
-      elegant: { heading: "Playfair Display", body: "Lato" },
-      bold: { heading: "Montserrat", body: "Open Sans" },
+      swiss_grid: { heading: "Inter", body: "Inter" },
+      warm_local: { heading: "Playfair Display", body: "Lato" },
+      tech_modern: { heading: "Space Grotesk", body: "Inter" },
+      luxury_minimal: { heading: "Cormorant Garamond", body: "Jost" },
+      editorial: { heading: "DM Serif Display", body: "DM Sans" },
+      glassmorphism: { heading: "Plus Jakarta Sans", body: "Inter" },
+      brutalist_clean: { heading: "Syne", body: "Syne" },
+      nordic_soft: { heading: "Nunito", body: "Nunito" },
     },
     radiusRange: [4, 12],
     spacingPreference: "airy",

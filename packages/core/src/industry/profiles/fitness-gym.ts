@@ -84,9 +84,14 @@ export const fitnessGymProfile: IndustryProfile = {
   designHints: {
     paletteStrategy: "Dunkel und energetisch: Schwarz/Anthrazit-Hintergrund. Kräftiger Akzent (Neon-Grün, Orange oder Electric Blue). Hoher Kontrast. Weiße Headlines auf dunklem Grund.",
     typographyHints: {
-      modern_clean: { heading: "Inter", body: "Inter" },
-      elegant: { heading: "Montserrat", body: "Open Sans" },
-      bold: { heading: "Space Grotesk", body: "DM Sans" },
+      swiss_grid: { heading: "Inter", body: "Inter" },
+      warm_local: { heading: "Montserrat", body: "Lato" },
+      tech_modern: { heading: "Space Grotesk", body: "Inter" },
+      luxury_minimal: { heading: "Cormorant Garamond", body: "Jost" },
+      editorial: { heading: "DM Serif Display", body: "DM Sans" },
+      glassmorphism: { heading: "Plus Jakarta Sans", body: "Inter" },
+      brutalist_clean: { heading: "Syne", body: "Syne" },
+      nordic_soft: { heading: "Nunito", body: "Nunito" },
     },
     radiusRange: [2, 8],
     spacingPreference: "compact",

@@ -84,9 +84,14 @@ export const educationDaycareProfile: IndustryProfile = {
   designHints: {
     paletteStrategy: "Freundlich und bunt: Heller Hintergrund mit bunten Akzentfarben (Grün, Orange, Hellblau). Verspielt aber nicht chaotisch. Warme, einladende Töne.",
     typographyHints: {
-      modern_clean: { heading: "Nunito", body: "Inter" },
-      elegant: { heading: "Quicksand", body: "Open Sans" },
-      bold: { heading: "Poppins", body: "Nunito Sans" },
+      swiss_grid: { heading: "Nunito", body: "Inter" },
+      warm_local: { heading: "Quicksand", body: "Lato" },
+      tech_modern: { heading: "Plus Jakarta Sans", body: "Inter" },
+      luxury_minimal: { heading: "Cormorant Garamond", body: "Jost" },
+      editorial: { heading: "DM Serif Display", body: "DM Sans" },
+      glassmorphism: { heading: "Plus Jakarta Sans", body: "Inter" },
+      brutalist_clean: { heading: "Syne", body: "Syne" },
+      nordic_soft: { heading: "Nunito", body: "Nunito" },
     },
     radiusRange: [12, 24],
     spacingPreference: "airy",

@@ -8,6 +8,7 @@ import {
   getDesignForPreset,
   getIndustryProfile,
   selectBlueprint,
+  normalizePreset,
   type IndustryProfile,
   type TemplateBlueprint,
   type IndustryId,
@@ -237,6 +238,10 @@ function fixImageField(obj: any, key: string): void {
 }
 
 function sanitizeLLMOutput(data: any): void {
+  // Normalize stylePreset (handles legacy names like modern_clean, bold, elegant)
+  if (data?.design?.stylePreset) {
+    data.design.stylePreset = normalizePreset(data.design.stylePreset);
+  }
   if (!data?.pages) return;
   for (const page of data.pages) {
     if (!page?.sections) continue;

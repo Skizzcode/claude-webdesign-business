@@ -174,9 +174,14 @@ export function AiActions({
           onChange={(e) => setRegenPreset(e.target.value as typeof regenPreset)}
           className="w-full text-xs px-2.5 py-1.5 border rounded-md bg-white outline-none mb-2"
         >
-          <option value="modern_clean">Modern Clean</option>
-          <option value="bold">Bold</option>
-          <option value="elegant">Elegant</option>
+          <option value="swiss_grid">Swiss Grid</option>
+          <option value="warm_local">Warm Local</option>
+          <option value="tech_modern">Tech Modern</option>
+          <option value="luxury_minimal">Luxury Minimal</option>
+          <option value="editorial">Editorial</option>
+          <option value="glassmorphism">Glassmorphism</option>
+          <option value="brutalist_clean">Brutalist Clean</option>
+          <option value="nordic_soft">Nordic Soft</option>
         </select>
         <button
           onClick={async () => {

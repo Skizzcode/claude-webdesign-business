@@ -81,9 +81,14 @@ export const homeServicesPlumbingProfile: IndustryProfile = {
   designHints: {
     paletteStrategy: "Professionelles Blau mit Orange/Gelb-Akzent. Weißer Hintergrund. Vertrauenswürdig und handwerklich. Kein verspieltes Design.",
     typographyHints: {
-      modern_clean: { heading: "Inter", body: "Inter" },
-      elegant: { heading: "Lora", body: "Source Sans 3" },
-      bold: { heading: "Space Grotesk", body: "DM Sans" },
+      swiss_grid: { heading: "Inter", body: "Inter" },
+      warm_local: { heading: "Lora", body: "Lato" },
+      tech_modern: { heading: "Space Grotesk", body: "Inter" },
+      luxury_minimal: { heading: "Cormorant Garamond", body: "Jost" },
+      editorial: { heading: "DM Serif Display", body: "DM Sans" },
+      glassmorphism: { heading: "Plus Jakarta Sans", body: "Inter" },
+      brutalist_clean: { heading: "Syne", body: "Syne" },
+      nordic_soft: { heading: "Nunito", body: "Nunito" },
     },
     radiusRange: [4, 8],
     spacingPreference: "normal",

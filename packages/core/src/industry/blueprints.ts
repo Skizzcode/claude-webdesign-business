@@ -19,7 +19,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "healthcare_trust",
     name: "Trust-Focused Healthcare",
     compatibleIndustries: ["healthcare_dentist", "healthcare_doctor", "healthcare_physio"],
-    compatiblePresets: ["modern_clean", "elegant"],
+    compatiblePresets: ["swiss_grid", "warm_local", "luxury_minimal", "nordic_soft"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -71,7 +71,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "healthcare_modern",
     name: "Modern Healthcare",
     compatibleIndustries: ["healthcare_dentist", "healthcare_doctor", "healthcare_physio"],
-    compatiblePresets: ["bold"],
+    compatiblePresets: ["tech_modern", "glassmorphism", "brutalist_clean", "editorial"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -113,7 +113,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "restaurant_gallery",
     name: "Gallery-Focused Restaurant",
     compatibleIndustries: ["food_restaurant", "food_bakery"],
-    compatiblePresets: ["modern_clean", "elegant"],
+    compatiblePresets: ["swiss_grid", "warm_local", "luxury_minimal", "nordic_soft"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -154,7 +154,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "restaurant_bold",
     name: "Bold Restaurant Experience",
     compatibleIndustries: ["food_restaurant"],
-    compatiblePresets: ["bold"],
+    compatiblePresets: ["tech_modern", "glassmorphism", "brutalist_clean", "editorial"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -185,7 +185,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "salon_elegant",
     name: "Elegant Beauty Salon",
     compatibleIndustries: ["beauty_salon"],
-    compatiblePresets: ["elegant", "modern_clean"],
+    compatiblePresets: ["luxury_minimal", "warm_local", "swiss_grid", "nordic_soft"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -227,7 +227,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "gym_bold",
     name: "Bold Fitness Studio",
     compatibleIndustries: ["fitness_gym"],
-    compatiblePresets: ["bold"],
+    compatiblePresets: ["tech_modern", "glassmorphism", "brutalist_clean"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -269,7 +269,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "gym_clean",
     name: "Modern Clean Fitness",
     compatibleIndustries: ["fitness_gym"],
-    compatiblePresets: ["modern_clean", "elegant"],
+    compatiblePresets: ["swiss_grid", "warm_local", "nordic_soft", "editorial"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -302,7 +302,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "homeservices_professional",
     name: "Professional Home Services",
     compatibleIndustries: ["home_services_plumbing", "home_services_electrical", "home_services_cleaning", "home_services_construction", "auto_repair"],
-    compatiblePresets: ["modern_clean", "bold", "elegant"],
+    compatiblePresets: ["swiss_grid", "warm_local", "tech_modern", "luxury_minimal", "editorial", "glassmorphism", "brutalist_clean", "nordic_soft"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -343,7 +343,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "professional_conservative",
     name: "Conservative Professional",
     compatibleIndustries: ["professional_law", "professional_tax"],
-    compatiblePresets: ["elegant", "modern_clean"],
+    compatiblePresets: ["luxury_minimal", "warm_local", "swiss_grid", "editorial"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -385,7 +385,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "realestate_showcase",
     name: "Property Showcase",
     compatibleIndustries: ["real_estate"],
-    compatiblePresets: ["modern_clean", "elegant", "bold"],
+    compatiblePresets: ["swiss_grid", "warm_local", "tech_modern", "luxury_minimal", "editorial", "glassmorphism", "brutalist_clean", "nordic_soft"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -418,7 +418,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "daycare_playful",
     name: "Playful Daycare",
     compatibleIndustries: ["education_daycare"],
-    compatiblePresets: ["modern_clean", "elegant", "bold"],
+    compatiblePresets: ["swiss_grid", "warm_local", "tech_modern", "luxury_minimal", "editorial", "glassmorphism", "brutalist_clean", "nordic_soft"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -461,7 +461,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "salon_bold",
     name: "Bold Beauty Studio",
     compatibleIndustries: ["beauty_salon"],
-    compatiblePresets: ["bold"],
+    compatiblePresets: ["tech_modern", "glassmorphism", "brutalist_clean", "editorial"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },
@@ -492,7 +492,7 @@ export const BLUEPRINTS: TemplateBlueprint[] = [
     id: "generic_professional",
     name: "Professional Business",
     compatibleIndustries: ["other"],
-    compatiblePresets: ["modern_clean", "bold", "elegant"],
+    compatiblePresets: ["swiss_grid", "warm_local", "tech_modern", "luxury_minimal", "editorial", "glassmorphism", "brutalist_clean", "nordic_soft"],
     pages: [
       {
         slug: "", title: { de: "Startseite", en: "Home" }, navLabel: { de: "Start", en: "Home" },

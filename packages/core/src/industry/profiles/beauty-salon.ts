@@ -83,9 +83,14 @@ export const beautySalonProfile: IndustryProfile = {
   designHints: {
     paletteStrategy: "Sanfte, elegante Töne: Rosé, Mauve, Champagner. Dezente Gold-Akzente. Heller, luftiger Hintergrund (Creme/Weiß). Feminine aber nicht kitschig.",
     typographyHints: {
-      modern_clean: { heading: "Outfit", body: "Inter" },
-      elegant: { heading: "Cormorant Garamond", body: "Lato" },
-      bold: { heading: "Montserrat", body: "Open Sans" },
+      swiss_grid: { heading: "Outfit", body: "Inter" },
+      warm_local: { heading: "Cormorant Garamond", body: "Lato" },
+      tech_modern: { heading: "Plus Jakarta Sans", body: "Inter" },
+      luxury_minimal: { heading: "Cormorant Garamond", body: "Jost" },
+      editorial: { heading: "DM Serif Display", body: "DM Sans" },
+      glassmorphism: { heading: "Plus Jakarta Sans", body: "Inter" },
+      brutalist_clean: { heading: "Syne", body: "Syne" },
+      nordic_soft: { heading: "Nunito", body: "Nunito" },
     },
     radiusRange: [12, 20],
     spacingPreference: "airy",

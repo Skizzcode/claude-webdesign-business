@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { INDUSTRIES } from "@website-engine/core";
+import { INDUSTRIES, PRESET_META } from "@website-engine/core";
 import { ArrowLeft, Globe, Loader2, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
 
@@ -15,26 +15,9 @@ interface Classification {
   topCandidates?: { id: string; confidence: number; reason: string }[];
 }
 
-const PRESETS = [
-  {
-    value: "modern_clean",
-    label: "Modern Clean",
-    desc: "Minimal, airy, centered layouts",
-    colors: ["#2563eb", "#0ea5e9", "#f8fafc"],
-  },
-  {
-    value: "bold",
-    label: "Bold",
-    desc: "Strong contrasts, dark theme, angular",
-    colors: ["#dc2626", "#f97316", "#0a0a0a"],
-  },
-  {
-    value: "elegant",
-    label: "Elegant",
-    desc: "Serif fonts, muted tones, refined",
-    colors: ["#7c3aed", "#a78bfa", "#faf9f7"],
-  },
-];
+// Google Fonts for preset card previews
+const GOOGLE_FONTS_URL =
+  "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Space+Grotesk:wght@700&family=Cormorant+Garamond:wght@600&family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@700&family=Syne:wght@700&family=Nunito:wght@700&display=swap";
 
 function getIndustryLabel(value: string): string {
   const found = INDUSTRIES.find((i) => i.value === value);
@@ -46,8 +29,17 @@ export default function NewProjectPage() {
   const [step, setStep] = useState<Step>("input");
   const [url, setUrl] = useState("");
   const [industry, setIndustry] = useState("");
-  const [preset, setPreset] = useState("modern_clean");
+  const [preset, setPreset] = useState("swiss_grid");
   const [language, setLanguage] = useState<"de" | "en">("de");
+
+  // Load Google Fonts for preset preview cards
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = GOOGLE_FONTS_URL;
+    document.head.appendChild(link);
+    return () => { document.head.removeChild(link); };
+  }, []);
   const [progress, setProgress] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -371,28 +363,33 @@ export default function NewProjectPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Style Preset
             </label>
-            <div className="grid grid-cols-3 gap-3">
-              {PRESETS.map((p) => (
+            <div className="grid grid-cols-2 gap-3">
+              {(Object.entries(PRESET_META) as [string, typeof PRESET_META[keyof typeof PRESET_META]][]).map(([key, meta]) => (
                 <button
-                  key={p.value}
-                  onClick={() => setPreset(p.value)}
+                  key={key}
+                  onClick={() => setPreset(key)}
                   className={`p-3 rounded-lg border text-left transition ${
-                    preset === p.value
-                      ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
-                      : "border-gray-200 hover:border-gray-300"
+                    preset === key
+                      ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
                   }`}
                 >
-                  <div className="flex gap-1 mb-2">
-                    {p.colors.map((c, i) => (
+                  <p
+                    className="text-sm font-bold mb-1 truncate"
+                    style={{ fontFamily: `"${meta.headingFont}", serif` }}
+                  >
+                    {meta.label}
+                  </p>
+                  <p className="text-xs text-gray-400 mb-2 leading-tight">{meta.description}</p>
+                  <div className="flex gap-1">
+                    {meta.colorDots.map((c, i) => (
                       <div
                         key={i}
-                        className="w-5 h-5 rounded-full border border-gray-200"
+                        className="w-4 h-4 rounded-full border border-gray-200 flex-shrink-0"
                         style={{ backgroundColor: c }}
                       />
                     ))}
                   </div>
-                  <p className="text-sm font-medium">{p.label}</p>
-                  <p className="text-xs text-gray-400">{p.desc}</p>
                 </button>
               ))}
             </div>

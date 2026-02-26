@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-export const StylePreset = z.enum(["modern_clean", "bold", "elegant"]);
+export const StylePreset = z.enum([
+  "swiss_grid",
+  "warm_local",
+  "tech_modern",
+  "luxury_minimal",
+  "editorial",
+  "glassmorphism",
+  "brutalist_clean",
+  "nordic_soft",
+]);
 export type StylePreset = z.infer<typeof StylePreset>;
 
 export const PaletteSchema = z.object({

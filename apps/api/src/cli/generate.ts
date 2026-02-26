@@ -12,7 +12,7 @@ async function main() {
 
   // Parse flags
   const args = process.argv.slice(3);
-  let preset: StylePreset = "modern_clean";
+  let preset: StylePreset = "swiss_grid";
   let language: "de" | "en" = "de";
   let industry: string | undefined;
 

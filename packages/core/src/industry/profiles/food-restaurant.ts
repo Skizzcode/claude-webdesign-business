@@ -85,9 +85,14 @@ export const foodRestaurantProfile: IndustryProfile = {
   designHints: {
     paletteStrategy: "Warme Erdtöne: dunkles Holz, warmes Bernstein/Gold, cremiges Weiß. Akzent in warmem Rot oder Terrakotta. Dunkler Hintergrund wirkt einladend.",
     typographyHints: {
-      modern_clean: { heading: "DM Serif Display", body: "Inter" },
-      elegant: { heading: "Playfair Display", body: "Source Sans 3" },
-      bold: { heading: "Space Grotesk", body: "DM Sans" },
+      swiss_grid: { heading: "DM Serif Display", body: "Inter" },
+      warm_local: { heading: "Playfair Display", body: "Lato" },
+      tech_modern: { heading: "Space Grotesk", body: "Inter" },
+      luxury_minimal: { heading: "Cormorant Garamond", body: "Jost" },
+      editorial: { heading: "DM Serif Display", body: "DM Sans" },
+      glassmorphism: { heading: "Plus Jakarta Sans", body: "Inter" },
+      brutalist_clean: { heading: "Syne", body: "Syne" },
+      nordic_soft: { heading: "Playfair Display", body: "Nunito" },
     },
     radiusRange: [4, 12],
     spacingPreference: "normal",

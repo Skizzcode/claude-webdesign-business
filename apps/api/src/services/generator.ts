@@ -15,6 +15,7 @@ import {
 } from "@website-engine/core";
 import { createLLMAdapter } from "../llm";
 import { classifyIndustry } from "./industry-classifier";
+import { generateLegalPages } from "./legal-generator";
 
 export interface GenerateOptions {
   scrapedData: ScrapedData;
@@ -367,6 +368,19 @@ export async function generateSiteProject(
 
   // Step 8: Attach classification to project meta
   project.meta.industryClassification = classification as any;
+
+  // Step 9: Append legal pages (Impressum + Datenschutz) if not already present
+  const slugs = new Set(project.pages.map((p) => p.slug));
+  if (!slugs.has("impressum") || !slugs.has("datenschutz")) {
+    onProgress?.("Generating legal pages (Impressum, Datenschutz)...");
+    const legalPages = generateLegalPages(project.meta, options.language);
+    for (const lp of legalPages) {
+      if (!slugs.has(lp.slug)) {
+        project.pages.push(lp);
+        slugs.add(lp.slug);
+      }
+    }
+  }
 
   onProgress?.("Website project generated successfully!");
   return project;

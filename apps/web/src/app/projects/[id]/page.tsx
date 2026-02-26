@@ -23,6 +23,7 @@ import {
   Loader2,
   CheckCircle,
   ClipboardCheck,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { api, type AuditReport, type AuditIssue } from "@/lib/api";
@@ -55,6 +56,7 @@ export default function BuilderPage() {
   const [rightPanel, setRightPanel] = useState<"inspector" | "brand" | "ai" | "media" | "audit">("inspector");
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   // Set initial active page
   if (project && !activePageId && project.pages.length > 0) {
@@ -85,6 +87,33 @@ export default function BuilderPage() {
 
   const activePage = project.pages.find((p) => p.id === activePageId) || project.pages[0];
   const selectedSection = activePage?.sections.find((s) => s.id === selectedSectionId);
+
+  const handleAuditPdf = async () => {
+    if (!project.meta?.audit) return;
+    setGeneratingPdf(true);
+    try {
+      // Dynamic import to avoid SSR issues with @react-pdf/renderer
+      const [{ pdf }, { AuditPdfDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/AuditPdfDocument"),
+      ]);
+      const blob = await pdf(
+        <AuditPdfDocument
+          businessName={project.meta.businessName}
+          report={project.meta.audit as import("@/lib/api").AuditReport}
+        />
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `audit-${project.meta.businessName.replace(/\s+/g, "-")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("PDF generation failed: " + err);
+    }
+    setGeneratingPdf(false);
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -167,6 +196,16 @@ export default function BuilderPage() {
           >
             <Eye size={14} /> Preview
           </button>
+          {project.meta?.audit && (
+            <button
+              onClick={handleAuditPdf}
+              disabled={generatingPdf}
+              className="text-sm px-3 py-1.5 rounded border hover:bg-gray-50 flex items-center gap-1.5 text-gray-700 disabled:opacity-50"
+            >
+              {generatingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+              Audit PDF
+            </button>
+          )}
           <button
             onClick={handleExport}
             disabled={exporting}

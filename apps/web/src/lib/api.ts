@@ -111,7 +111,35 @@ export const api = {
       body: JSON.stringify(opts),
     }),
 
+  // Website Audit
+  auditWebsite: (projectId: string) =>
+    request<AuditReport>("/api/generate/audit", {
+      method: "POST",
+      body: JSON.stringify({ projectId }),
+    }),
+
   // Export
   exportProject: (projectId: string) =>
     request<any>(`/api/export/${projectId}`, { method: "POST" }),
 };
+
+// ── Audit Types (mirrored from auditor.ts) ────────────────
+export type AuditSeverity = "critical" | "major" | "minor";
+export type AuditCategory = "conversion" | "trust" | "ux" | "seo" | "completeness";
+
+export interface AuditIssue {
+  id: string;
+  title: string;
+  description: string;
+  severity: AuditSeverity;
+  category: AuditCategory;
+  fixedIn: string;
+}
+
+export interface AuditReport {
+  score: number;
+  newScore: number;
+  issues: AuditIssue[];
+  strengths: string[];
+  generatedAt: string;
+}

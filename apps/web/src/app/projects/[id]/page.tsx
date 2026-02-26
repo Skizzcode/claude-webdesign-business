@@ -22,9 +22,10 @@ import {
   Image,
   Loader2,
   CheckCircle,
+  ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, type AuditReport, type AuditIssue } from "@/lib/api";
 
 export default function BuilderPage() {
   const { id } = useParams<{ id: string }>();
@@ -51,7 +52,7 @@ export default function BuilderPage() {
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [showPreview, setShowPreview] = useState(false);
-  const [rightPanel, setRightPanel] = useState<"inspector" | "brand" | "ai" | "media">("inspector");
+  const [rightPanel, setRightPanel] = useState<"inspector" | "brand" | "ai" | "media" | "audit">("inspector");
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(false);
 
@@ -227,6 +228,7 @@ export default function BuilderPage() {
               { key: "brand", icon: <Palette size={14} />, label: "Brand" },
               { key: "ai", icon: <Sparkles size={14} />, label: "AI" },
               { key: "media", icon: <Image size={14} />, label: "Media" },
+              { key: "audit", icon: <ClipboardCheck size={14} />, label: "Audit" },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -292,9 +294,103 @@ export default function BuilderPage() {
                 }}
               />
             )}
+            {rightPanel === "audit" && (
+              <AuditPanel report={project.meta?.audit as AuditReport | undefined} />
+            )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Audit Panel ────────────────────────────────────────────
+
+function AuditPanel({ report }: { report: AuditReport | undefined }) {
+  if (!report) {
+    return (
+      <div className="p-6 text-center text-gray-400 text-sm">
+        <ClipboardCheck size={32} className="mx-auto mb-3 opacity-30" />
+        <p className="font-medium text-gray-500 mb-1">Kein Audit vorhanden</p>
+        <p className="text-xs">Starte einen neuen Scan über den Wizard.</p>
+      </div>
+    );
+  }
+
+  const severityIcon = (s: AuditIssue["severity"]) => {
+    if (s === "critical") return <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 inline-block" />;
+    if (s === "major") return <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0 inline-block" />;
+    return <span className="w-2 h-2 rounded-full bg-gray-400 shrink-0 inline-block" />;
+  };
+
+  const criticals = report.issues.filter((i) => i.severity === "critical").length;
+  const majors = report.issues.filter((i) => i.severity === "major").length;
+  const minors = report.issues.filter((i) => i.severity === "minor").length;
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Score comparison */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-red-50 rounded-lg p-3 text-center">
+          <p className="text-xs text-red-600 font-medium mb-1">Aktuelle Website</p>
+          <p className="text-2xl font-bold text-red-600">{report.score}</p>
+          <p className="text-xs text-red-400">/100</p>
+        </div>
+        <div className="bg-green-50 rounded-lg p-3 text-center">
+          <p className="text-xs text-green-600 font-medium mb-1">Neue Website</p>
+          <p className="text-2xl font-bold text-green-600">{report.newScore}</p>
+          <p className="text-xs text-green-400">/100</p>
+        </div>
+      </div>
+
+      {/* Issue counts */}
+      <div className="flex gap-2 text-xs">
+        <span className="flex items-center gap-1 text-red-600">
+          <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> {criticals} kritisch
+        </span>
+        <span className="flex items-center gap-1 text-yellow-600">
+          <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" /> {majors} major
+        </span>
+        <span className="flex items-center gap-1 text-gray-500">
+          <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> {minors} minor
+        </span>
+      </div>
+
+      {/* Issues list */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+          Probleme — alle behoben ✓
+        </p>
+        <div className="space-y-2">
+          {report.issues.map((issue) => (
+            <div key={issue.id} className="flex gap-2 items-start">
+              {severityIcon(issue.severity)}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-gray-700 leading-snug">{issue.title}</p>
+                <p className="text-xs text-green-600 mt-0.5">✓ {issue.fixedIn}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Strengths */}
+      {report.strengths.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Stärken</p>
+          <div className="space-y-1">
+            {report.strengths.map((s, i) => (
+              <p key={i} className="text-xs text-gray-600 flex gap-1.5">
+                <span className="text-green-500">○</span> {s}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p className="text-xs text-gray-300">
+        Analysiert: {new Date(report.generatedAt).toLocaleDateString("de-DE")}
+      </p>
     </div>
   );
 }

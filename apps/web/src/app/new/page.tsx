@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { INDUSTRIES, PRESET_META } from "@website-engine/core";
-import { ArrowLeft, Globe, Loader2, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, Globe, Loader2, CheckCircle, AlertCircle, Sparkles, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
+import type { AuditReport } from "@/lib/api";
 import Link from "next/link";
 
-type Step = "input" | "scraping" | "classifying" | "generating" | "done" | "error";
+type Step = "input" | "scraping" | "classifying" | "audit" | "generating" | "done" | "error";
 
 interface Classification {
   industryId: string;
@@ -44,6 +45,8 @@ export default function NewProjectPage() {
   const [error, setError] = useState("");
   const [projectId, setProjectId] = useState("");
   const [classification, setClassification] = useState<Classification | null>(null);
+  const [auditReport, setAuditReport] = useState<AuditReport | null>(null);
+  const [confirmedIndustry, setConfirmedIndustry] = useState("");
 
   const handleGenerate = async () => {
     if (!url) return;
@@ -71,6 +74,7 @@ export default function NewProjectPage() {
       setProgress((prev) => [...prev, "Scrape complete!"]);
 
       // Step 2: Classify industry (if not manually selected)
+      let detectedIndustry = industry;
       if (!industry) {
         setStep("classifying");
         setProgress((prev) => [...prev, "Detecting industry..."]);
@@ -79,27 +83,50 @@ export default function NewProjectPage() {
           const cls = await api.classifyIndustry(scrapeRes.projectId);
           setClassification(cls);
           setIndustry(cls.industryId);
+          detectedIndustry = cls.industryId;
           setProgress((prev) => [
             ...prev,
             `Industry detected: ${getIndustryLabel(cls.industryId)} (${Math.round(cls.confidence * 100)}%)`,
           ]);
+          // Pause on classifying step for user to confirm
+          return;
         } catch {
-          // Classification failed — continue with "other"
+          detectedIndustry = "other";
           setIndustry("other");
         }
       }
 
-      // Step 3: Generate
-      setStep("generating");
-      setProgress((prev) => [...prev, "Generating website with AI..."]);
+      // Step 3: Audit (run after scraping if industry was pre-selected)
+      await runAuditAndShow(scrapeRes.projectId, detectedIndustry || "other");
+    } catch (err) {
+      setError(String(err));
+      setStep("error");
+    }
+  };
 
+  const runAuditAndShow = async (pid: string, selectedIndustry: string) => {
+    try {
+      setProgress((prev) => [...prev, "Analysiere alte Website..."]);
+      const report = await api.auditWebsite(pid);
+      setAuditReport(report);
+      setConfirmedIndustry(selectedIndustry);
+      setStep("audit");
+    } catch {
+      // Audit failed — skip to generate
+      await runGenerate(pid, selectedIndustry);
+    }
+  };
+
+  const runGenerate = async (pid: string, selectedIndustry: string) => {
+    setStep("generating");
+    setProgress((prev) => [...prev, "Generating website with AI..."]);
+    try {
       await api.generateSite({
-        projectId: scrapeRes.projectId,
+        projectId: pid,
         preset,
         language,
-        industry: industry || undefined,
+        industry: selectedIndustry || undefined,
       });
-
       setStep("done");
       setProgress((prev) => [...prev, "Website generated!"]);
     } catch (err) {
@@ -110,25 +137,8 @@ export default function NewProjectPage() {
 
   const handleConfirmIndustry = async (selectedId: string) => {
     setIndustry(selectedId);
-
-    // Continue to generation
-    setStep("generating");
-    setProgress((prev) => [...prev, `Industry confirmed: ${getIndustryLabel(selectedId)}`, "Generating website with AI..."]);
-
-    try {
-      await api.generateSite({
-        projectId,
-        preset,
-        language,
-        industry: selectedId,
-      });
-
-      setStep("done");
-      setProgress((prev) => [...prev, "Website generated!"]);
-    } catch (err) {
-      setError(String(err));
-      setStep("error");
-    }
+    setProgress((prev) => [...prev, `Industry confirmed: ${getIndustryLabel(selectedId)}`]);
+    await runAuditAndShow(projectId, selectedId);
   };
 
   // ── Done ────────────────────────────────────────────────
@@ -247,6 +257,95 @@ export default function NewProjectPage() {
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // ── Audit Step ──────────────────────────────────────────
+  if (step === "audit" && auditReport) {
+    const criticalCount = auditReport.issues.filter((i) => i.severity === "critical").length;
+    const majorCount = auditReport.issues.filter((i) => i.severity === "major").length;
+    const minorCount = auditReport.issues.filter((i) => i.severity === "minor").length;
+
+    const severityIcon = (s: string) =>
+      s === "critical" ? "🔴" : s === "major" ? "🟡" : "⚪";
+
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white border-b">
+          <div className="max-w-4xl mx-auto px-6 py-4">
+            <h1 className="text-lg font-bold">Website-Analyse</h1>
+          </div>
+        </header>
+        <main className="max-w-4xl mx-auto px-6 py-8">
+          {/* Score comparison */}
+          <div className="grid grid-cols-2 gap-6 mb-8">
+            {/* Old site */}
+            <div className="bg-white rounded-xl border p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingDown size={20} className="text-red-500" />
+                <h2 className="font-semibold text-gray-700">Aktuelle Website</h2>
+              </div>
+              <div className="text-5xl font-black text-red-500 mb-1">{auditReport.score}<span className="text-2xl text-gray-400">/100</span></div>
+              <p className="text-sm text-gray-500 mb-4">Optimierungsbedarf</p>
+              <div className="space-y-1 text-xs text-gray-500">
+                {criticalCount > 0 && <p>🔴 {criticalCount} kritische Problem{criticalCount !== 1 ? "e" : ""}</p>}
+                {majorCount > 0 && <p>🟡 {majorCount} wichtige Problem{majorCount !== 1 ? "e" : ""}</p>}
+                {minorCount > 0 && <p>⚪ {minorCount} kleine{minorCount !== 1 ? "" : "s"} Problem{minorCount !== 1 ? "e" : ""}</p>}
+              </div>
+            </div>
+            {/* New site */}
+            <div className="bg-white rounded-xl border border-green-200 p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp size={20} className="text-green-500" />
+                <h2 className="font-semibold text-gray-700">Neue Website</h2>
+              </div>
+              <div className="text-5xl font-black text-green-500 mb-1">{auditReport.newScore}<span className="text-2xl text-gray-400">/100</span></div>
+              <p className="text-sm text-gray-500 mb-4">Projizierter Score</p>
+              <p className="text-xs text-green-600 font-medium">
+                ✓ {auditReport.issues.length} Problem{auditReport.issues.length !== 1 ? "e werden" : " wird"} gelöst
+              </p>
+            </div>
+          </div>
+
+          {/* Issues list */}
+          <div className="bg-white rounded-xl border mb-6">
+            <div className="px-6 py-4 border-b">
+              <h3 className="font-semibold">Gefundene Probleme</h3>
+            </div>
+            <div className="divide-y max-h-80 overflow-y-auto">
+              {auditReport.issues.map((issue) => (
+                <div key={issue.id} className="px-6 py-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-base mt-0.5">{severityIcon(issue.severity)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800">{issue.title}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{issue.description}</p>
+                      <p className="text-xs text-green-600 mt-1">{issue.fixedIn}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="flex gap-4">
+            <button
+              onClick={() => runGenerate(projectId, confirmedIndustry)}
+              className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+            >
+              Jetzt optimierte Website generieren
+              <ChevronRight size={18} />
+            </button>
+            <button
+              onClick={() => runGenerate(projectId, confirmedIndustry)}
+              className="px-6 py-3 text-sm text-gray-400 hover:text-gray-600 transition"
+            >
+              Überspringen
+            </button>
+          </div>
+        </main>
       </div>
     );
   }

@@ -58,5 +58,6 @@ export const MetaSchema = z.object({
       url: z.string().url().optional(),
     })
     .optional(),
+  audit: z.any().optional(),
 });
 export type Meta = z.infer<typeof MetaSchema>;
